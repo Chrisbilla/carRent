@@ -1,4 +1,4 @@
-
+```javascript
 require("dotenv").config();
 
 const express = require("express");
@@ -11,6 +11,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// MySQL connection pool
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT || 3306),
@@ -21,7 +22,7 @@ const pool = mysql.createPool({
     connectionLimit: 5
 });
 
-// Home / health check
+// Health check
 app.get("/", function (req, res) {
     res.json({
         success: true,
@@ -32,12 +33,14 @@ app.get("/", function (req, res) {
 // Get cars
 app.get("/api/cars", async function (req, res) {
     try {
-        const result = await pool.query(
+        const [cars] = await pool.query(
             "SELECT id, car_name, is_available FROM cars"
         );
-        res.json(result[0]);
+
+        res.json(cars);
     } catch (error) {
         console.error("Cars error:", error.message);
+
         res.status(500).json({
             success: false,
             message: "Could not load cars"
@@ -48,10 +51,7 @@ app.get("/api/cars", async function (req, res) {
 // Register
 app.post("/api/register", async function (req, res) {
     try {
-        const fullName = req.body.fullName;
-        const email = req.body.email;
-        const phone = req.body.phone;
-        const password = req.body.password;
+        const { fullName, email, phone, password } = req.body;
 
         if (!fullName || !email || !phone || !password) {
             return res.status(400).json({
@@ -63,7 +63,9 @@ app.post("/api/register", async function (req, res) {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         await pool.execute(
-            "INSERT INTO users (full_name, email, phone, password) VALUES (?, ?, ?, ?)",
+            `INSERT INTO users
+            (full_name, email, phone, password)
+            VALUES (?, ?, ?, ?)`,
             [fullName, email, phone, hashedPassword]
         );
 
@@ -73,6 +75,7 @@ app.post("/api/register", async function (req, res) {
         });
     } catch (error) {
         console.error("Register error:", error.message);
+
         res.status(500).json({
             success: false,
             message: "Registration failed. Email may already be registered."
@@ -83,8 +86,7 @@ app.post("/api/register", async function (req, res) {
 // Login
 app.post("/api/login", async function (req, res) {
     try {
-        const email = req.body.email;
-        const password = req.body.password;
+        const { email, password } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({
@@ -93,12 +95,11 @@ app.post("/api/login", async function (req, res) {
             });
         }
 
-        const result = await pool.execute(
-            "SELECT id, full_name, email, phone, password FROM users WHERE email = ?",
+        const [users] = await pool.execute(
+            `SELECT id, full_name, email, phone, password
+             FROM users WHERE email = ?`,
             [email]
         );
-
-        const users = result[0];
 
         if (users.length === 0) {
             return res.status(401).json({
@@ -128,6 +129,7 @@ app.post("/api/login", async function (req, res) {
         });
     } catch (error) {
         console.error("Login error:", error.message);
+
         res.status(500).json({
             success: false,
             message: "Login failed"
@@ -138,24 +140,33 @@ app.post("/api/login", async function (req, res) {
 // Create booking
 app.post("/api/bookings", async function (req, res) {
     try {
-        const fullName = req.body.fullName;
-        const email = req.body.email;
-        const phone = req.body.phone;
-        const pickupLocation = req.body.pickupLocation;
-        const car = req.body.car;
-        const rentalType = req.body.rentalType;
-        const pickupDate = req.body.pickupDate;
-        const pickupTime = req.body.pickupTime || null;
-        const returnDate = req.body.returnDate || null;
-        const returnTime = req.body.returnTime || null;
-        const duration = req.body.duration;
-        const rate = req.body.rate;
-        const totalRent = req.body.totalRent;
+        const {
+            fullName,
+            email,
+            phone,
+            pickupLocation,
+            car,
+            rentalType,
+            pickupDate,
+            pickupTime,
+            returnDate,
+            returnTime,
+            duration,
+            rate,
+            totalRent
+        } = req.body;
 
         if (
-            !fullName || !email || !phone || !pickupLocation ||
-            !car || !rentalType || !pickupDate ||
-            duration == null || rate == null || totalRent == null
+            !fullName ||
+            !email ||
+            !phone ||
+            !pickupLocation ||
+            !car ||
+            !rentalType ||
+            !pickupDate ||
+            duration == null ||
+            rate == null ||
+            totalRent == null
         ) {
             return res.status(400).json({
                 success: false,
@@ -163,8 +174,14 @@ app.post("/api/bookings", async function (req, res) {
             });
         }
 
-        const result = await pool.execute(
-            "INSERT INTO bookings (full_name, email, phone, car, rental_type, pickup_date, pickup_time, return_date, return_time, duration, rate, pickup_location, total_rent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        const [result] = await pool.execute(
+            `INSERT INTO bookings
+            (
+                full_name, email, phone, car, rental_type,
+                pickup_date, pickup_time, return_date, return_time,
+                duration, rate, pickup_location, total_rent
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 fullName,
                 email,
@@ -172,9 +189,9 @@ app.post("/api/bookings", async function (req, res) {
                 car,
                 rentalType,
                 pickupDate,
-                pickupTime,
-                returnDate,
-                returnTime,
+                pickupTime || null,
+                returnDate || null,
+                returnTime || null,
                 duration,
                 rate,
                 pickupLocation,
@@ -184,12 +201,13 @@ app.post("/api/bookings", async function (req, res) {
 
         res.status(201).json({
             success: true,
-            bookingId: result[0].insertId,
-            totalRent: totalRent,
+            bookingId: result.insertId,
+            totalRent,
             message: "Booking created successfully"
         });
     } catch (error) {
         console.error("Booking error:", error.message);
+
         res.status(500).json({
             success: false,
             message: "Could not create booking"
@@ -200,7 +218,7 @@ app.post("/api/bookings", async function (req, res) {
 // Booking history
 app.get("/api/bookings/history", async function (req, res) {
     try {
-        const email = req.query.email;
+        const { email } = req.query;
 
         if (!email) {
             return res.status(400).json({
@@ -209,14 +227,15 @@ app.get("/api/bookings/history", async function (req, res) {
             });
         }
 
-        const result = await pool.execute(
+        const [bookings] = await pool.execute(
             "SELECT * FROM bookings WHERE email = ? ORDER BY id DESC",
             [email]
         );
 
-        res.json(result[0]);
+        res.json(bookings);
     } catch (error) {
         console.error("History error:", error.message);
+
         res.status(500).json({
             success: false,
             message: "Could not load booking history"
@@ -225,37 +244,85 @@ app.get("/api/bookings/history", async function (req, res) {
 });
 
 // Confirm booking
+// Frontend should send POST /api/bookings/:id/confirm
 app.post("/api/bookings/:id/confirm", async function (req, res) {
+    const bookingId = req.params.id;
+
+    if (!/^\d+$/.test(bookingId) || Number(bookingId) < 1) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid booking ID"
+        });
+    }
+
+    let connection;
+
     try {
-        const result = await pool.execute(
-            "UPDATE bookings SET payment_status = 'Paid', booking_status = 'Confirmed' WHERE id = ?",
-            [req.params.id]
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        const [bookings] = await connection.execute(
+            "SELECT id, booking_status FROM bookings WHERE id = ? FOR UPDATE",
+            [bookingId]
         );
 
-        if (result[0].affectedRows === 0) {
+        if (bookings.length === 0) {
+            await connection.rollback();
+
             return res.status(404).json({
                 success: false,
-                message: "Booking not found"
+                message: "Booking not found. Please create a new booking."
             });
         }
 
-        res.json({
+        await connection.execute(
+            `UPDATE bookings
+             SET booking_status = 'Confirmed',
+                 payment_status = 'Pending'
+             WHERE id = ?`,
+            [bookingId]
+        );
+
+        await connection.commit();
+
+        return res.json({
             success: true,
-            message: "Booking confirmed"
+            bookingId: Number(bookingId),
+            bookingStatus: "Confirmed",
+            paymentStatus: "Pending",
+            message: "Booking confirmed successfully"
         });
     } catch (error) {
+        if (connection) {
+            await connection.rollback();
+        }
+
         console.error("Confirmation error:", error.message);
-        res.status(500).json({
+
+        return res.status(500).json({
             success: false,
             message: "Could not confirm booking"
         });
+    } finally {
+        if (connection) {
+            connection.release();
+        }
     }
 });
 
-// Start server only after database connection succeeds
+// Unknown API routes
+app.use("/api", function (req, res) {
+    res.status(404).json({
+        success: false,
+        message: `API route not found: ${req.method} ${req.originalUrl}`
+    });
+});
+
+// Start server after database connection succeeds
 async function startServer() {
     try {
         const connection = await pool.getConnection();
+
         await connection.ping();
         connection.release();
 
@@ -273,4 +340,4 @@ async function startServer() {
 }
 
 startServer();
-
+```
