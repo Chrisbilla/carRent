@@ -23,21 +23,24 @@ const pool = mysql.createPool({
     connectionLimit: 5
 });
 
-// Gmail email transporter
+// Gmail SMTP transporter - SSL port 465
 const mailer = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    connectionTimeout: 20000,
+    greetingTimeout: 20000,
+    socketTimeout: 30000,
     auth: {
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_APP_PASSWORD
     }
 });
 
-// Validate database IDs
 function validId(id) {
     return /^\d+$/.test(String(id)) && Number(id) > 0;
 }
 
-// Safely escape user-provided text in HTML emails
 function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, char => ({
         "&": "&amp;",
@@ -48,7 +51,6 @@ function escapeHtml(value) {
     })[char]);
 }
 
-// Admin API key protection
 function requireAdmin(req, res, next) {
     const expectedKey = process.env.ADMIN_API_KEY;
     const suppliedKey = req.get("x-admin-key");
@@ -97,11 +99,9 @@ app.get("/api/cars", async (req, res) => {
         const [cars] = await pool.query(
             "SELECT id, car_name, is_available FROM cars"
         );
-
         res.json(cars);
     } catch (error) {
         console.error("Cars error:", error.message);
-
         res.status(500).json({
             success: false,
             message: "Could not load cars"
@@ -124,8 +124,7 @@ app.post("/api/register", async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         await pool.execute(
-            `INSERT INTO users
-             (full_name, email, phone, password)
+            `INSERT INTO users (full_name, email, phone, password)
              VALUES (?, ?, ?, ?)`,
             [
                 fullName.trim(),
@@ -141,7 +140,6 @@ app.post("/api/register", async (req, res) => {
         });
     } catch (error) {
         console.error("Register error:", error.message);
-
         res.status(500).json({
             success: false,
             message: "Registration failed. Email may already be registered."
@@ -163,8 +161,7 @@ app.post("/api/login", async (req, res) => {
 
         const [users] = await pool.execute(
             `SELECT id, full_name, email, phone, password
-             FROM users
-             WHERE email = ?`,
+             FROM users WHERE email = ?`,
             [email.trim()]
         );
 
@@ -176,9 +173,12 @@ app.post("/api/login", async (req, res) => {
         }
 
         const user = users[0];
-        const valid = await bcrypt.compare(password, user.password);
+        const passwordMatches = await bcrypt.compare(
+            password,
+            user.password
+        );
 
-        if (!valid) {
+        if (!passwordMatches) {
             return res.status(401).json({
                 success: false,
                 message: "Invalid email or password"
@@ -196,7 +196,6 @@ app.post("/api/login", async (req, res) => {
         });
     } catch (error) {
         console.error("Login error:", error.message);
-
         res.status(500).json({
             success: false,
             message: "Login failed"
@@ -224,16 +223,9 @@ app.post("/api/bookings", async (req, res) => {
         } = req.body;
 
         if (
-            !fullName ||
-            !email ||
-            !phone ||
-            !pickupLocation ||
-            !car ||
-            !rentalType ||
-            !pickupDate ||
-            duration == null ||
-            rate == null ||
-            totalRent == null
+            !fullName || !email || !phone || !pickupLocation ||
+            !car || !rentalType || !pickupDate ||
+            duration == null || rate == null || totalRent == null
         ) {
             return res.status(400).json({
                 success: false,
@@ -257,11 +249,9 @@ app.post("/api/bookings", async (req, res) => {
 
         const [result] = await pool.execute(
             `INSERT INTO bookings
-             (
-                full_name, email, phone, car, rental_type,
-                pickup_date, pickup_time, return_date, return_time,
-                duration, rate, pickup_location, total_rent
-             )
+             (full_name, email, phone, car, rental_type,
+              pickup_date, pickup_time, return_date, return_time,
+              duration, rate, pickup_location, total_rent)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 fullName,
@@ -288,7 +278,6 @@ app.post("/api/bookings", async (req, res) => {
         });
     } catch (error) {
         console.error("Booking error:", error.message);
-
         res.status(500).json({
             success: false,
             message: "Could not create booking"
@@ -316,7 +305,6 @@ app.get("/api/bookings/history", async (req, res) => {
         res.json(bookings);
     } catch (error) {
         console.error("History error:", error.message);
-
         res.status(500).json({
             success: false,
             message: "Could not load booking history"
@@ -324,7 +312,7 @@ app.get("/api/bookings/history", async (req, res) => {
     }
 });
 
-// Confirm booking and send confirmation email
+// Confirm booking and send email
 app.post("/api/bookings/:id/confirm", async (req, res) => {
     const bookingId = req.params.id;
 
@@ -338,6 +326,7 @@ app.post("/api/bookings/:id/confirm", async (req, res) => {
     let connection;
     let transactionStarted = false;
     let booking;
+    let alreadyConfirmed = false;
 
     try {
         connection = await pool.getConnection();
@@ -365,9 +354,7 @@ app.post("/api/bookings/:id/confirm", async (req, res) => {
         }
 
         booking = rows[0];
-
-        // Avoid sending duplicate confirmation emails on repeated requests.
-        const alreadyConfirmed =
+        alreadyConfirmed =
             String(booking.booking_status).toLowerCase() === "confirmed";
 
         if (!alreadyConfirmed) {
@@ -384,11 +371,14 @@ app.post("/api/bookings/:id/confirm", async (req, res) => {
         transactionStarted = false;
     } catch (error) {
         if (connection && transactionStarted) {
-            await connection.rollback();
+            try {
+                await connection.rollback();
+            } catch (rollbackError) {
+                console.error("Rollback error:", rollbackError.message);
+            }
         }
 
         console.error("Confirmation error:", error.message);
-
         return res.status(500).json({
             success: false,
             message: "Could not confirm booking"
@@ -397,39 +387,23 @@ app.post("/api/bookings/:id/confirm", async (req, res) => {
         if (connection) connection.release();
     }
 
-    // If this booking was already confirmed, do not resend the email.
-    if (String(booking.booking_status).toLowerCase() === "confirmed") {
+    if (alreadyConfirmed) {
         return res.json({
             success: true,
             bookingId: Number(bookingId),
             bookingStatus: "Confirmed",
             paymentStatus: "Pending",
             emailSent: false,
-            message: "Booking was already confirmed."
+            message: "Booking was already confirmed; email not resent."
         });
     }
 
     let emailSent = false;
 
     try {
-        if (
-            !process.env.GMAIL_USER ||
-            !process.env.GMAIL_APP_PASSWORD
-        ) {
+        if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
             throw new Error("Gmail environment variables are missing");
         }
-
-        const details = [
-            `Booking ID: ${booking.id}`,
-            `Car: ${booking.car}`,
-            `Pickup date: ${booking.pickup_date}`,
-            `Pickup time: ${booking.pickup_time || "Not specified"}`,
-            `Return date: ${booking.return_date || "Not specified"}`,
-            `Return time: ${booking.return_time || "Not specified"}`,
-            `Total rent: ${booking.total_rent}`,
-            "Booking status: Confirmed",
-            "Payment status: Pending"
-        ];
 
         const htmlRows = [
             ["Booking ID", booking.id],
@@ -452,19 +426,29 @@ app.post("/api/bookings/:id/confirm", async (req, res) => {
             </tr>
         `).join("");
 
-        await mailer.sendMail({
+        const textBody = [
+            `Hello ${booking.full_name},`,
+            "",
+            "Your CarRent booking has been confirmed!",
+            "",
+            `Booking ID: ${booking.id}`,
+            `Car: ${booking.car}`,
+            `Pickup date: ${booking.pickup_date}`,
+            `Pickup time: ${booking.pickup_time || "Not specified"}`,
+            `Return date: ${booking.return_date || "Not specified"}`,
+            `Return time: ${booking.return_time || "Not specified"}`,
+            `Total rent: ${booking.total_rent}`,
+            "Booking status: Confirmed",
+            "Payment status: Pending",
+            "",
+            "Thank you for choosing CarRent!"
+        ].join("\n");
+
+        const info = await mailer.sendMail({
             from: `"CarRent" <${process.env.GMAIL_USER}>`,
             to: booking.email,
             subject: `CarRent Booking Confirmation #${booking.id}`,
-            text: [
-                `Hello ${booking.full_name},`,
-                "",
-                "Your car booking has been confirmed!",
-                "",
-                ...details,
-                "",
-                "Thank you for choosing CarRent!"
-            ].join("\n"),
+            text: textBody,
             html: `
                 <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;color:#222">
                     <h2 style="color:#2563eb">CarRent</h2>
@@ -480,9 +464,15 @@ app.post("/api/bookings/:id/confirm", async (req, res) => {
         });
 
         emailSent = true;
-        console.log("Booking confirmation email sent for booking:", booking.id);
+        console.log(
+            `Booking confirmation email accepted for booking ${booking.id}. Message ID: ${info.messageId}`
+        );
     } catch (error) {
-        console.error("Booking email error:", error.message);
+        console.error(
+            "Booking email error:",
+            error.code || "",
+            error.message
+        );
     }
 
     return res.json({
@@ -493,14 +483,14 @@ app.post("/api/bookings/:id/confirm", async (req, res) => {
         emailSent,
         message: emailSent
             ? "Booking confirmed and email sent."
-            : "Booking confirmed, but confirmation email could not be sent."
+            : "Booking confirmed, but email could not be sent."
     });
 });
 
-// All routes below require the admin API key
+// Protect all admin routes
 app.use("/api/admin", requireAdmin);
 
-// Admin: Get all bookings
+// Admin: Get bookings
 app.get("/api/admin/bookings", async (req, res) => {
     try {
         const [rows] = await pool.query(
@@ -508,14 +498,11 @@ app.get("/api/admin/bookings", async (req, res) => {
                     pickup_date, pickup_time, return_date, return_time,
                     duration, rate, pickup_location, total_rent,
                     payment_status, booking_status
-             FROM bookings
-             ORDER BY id DESC`
+             FROM bookings ORDER BY id DESC`
         );
-
         res.json(rows);
     } catch (error) {
         console.error("Admin bookings error:", error.message);
-
         res.status(500).json({
             success: false,
             message: "Could not load admin bookings"
@@ -523,19 +510,15 @@ app.get("/api/admin/bookings", async (req, res) => {
     }
 });
 
-// Admin: Get all users (never return passwords)
+// Admin: Get users
 app.get("/api/admin/users", async (req, res) => {
     try {
         const [rows] = await pool.query(
-            `SELECT id, full_name, email, phone
-             FROM users
-             ORDER BY id DESC`
+            "SELECT id, full_name, email, phone FROM users ORDER BY id DESC"
         );
-
         res.json(rows);
     } catch (error) {
         console.error("Admin users error:", error.message);
-
         res.status(500).json({
             success: false,
             message: "Could not load users"
@@ -543,19 +526,15 @@ app.get("/api/admin/users", async (req, res) => {
     }
 });
 
-// Admin: Get all cars
+// Admin: Get cars
 app.get("/api/admin/cars", async (req, res) => {
     try {
         const [rows] = await pool.query(
-            `SELECT id, car_name, is_available
-             FROM cars
-             ORDER BY id`
+            "SELECT id, car_name, is_available FROM cars ORDER BY id"
         );
-
         res.json(rows);
     } catch (error) {
         console.error("Admin cars error:", error.message);
-
         res.status(500).json({
             success: false,
             message: "Could not load admin cars"
@@ -608,7 +587,6 @@ app.put("/api/admin/cars/:id/availability", async (req, res) => {
         });
     } catch (error) {
         console.error("Admin car update error:", error.message);
-
         res.status(500).json({
             success: false,
             message: "Could not update car availability"
@@ -661,7 +639,6 @@ app.put("/api/admin/bookings/:id/status", async (req, res) => {
         });
     } catch (error) {
         console.error("Admin booking status error:", error.message);
-
         res.status(500).json({
             success: false,
             message: "Could not update booking status"
@@ -715,7 +692,6 @@ app.put("/api/admin/bookings/:id/payment", async (req, res) => {
         });
     } catch (error) {
         console.error("Admin payment update error:", error.message);
-
         res.status(500).json({
             success: false,
             message: "Could not update payment status"
@@ -723,7 +699,7 @@ app.put("/api/admin/bookings/:id/payment", async (req, res) => {
     }
 });
 
-// Admin: Delete user only if they have no booking history
+// Admin: Delete user only if no booking history exists
 app.delete("/api/admin/users/:id", async (req, res) => {
     const userId = req.params.id;
 
@@ -770,7 +746,6 @@ app.delete("/api/admin/users/:id", async (req, res) => {
         });
     } catch (error) {
         console.error("Admin user delete error:", error.message);
-
         res.status(500).json({
             success: false,
             message: "Could not delete user"
@@ -786,7 +761,7 @@ app.use("/api", (req, res) => {
     });
 });
 
-// Start server after database connection succeeds
+// Start server
 async function startServer() {
     let connection;
 
