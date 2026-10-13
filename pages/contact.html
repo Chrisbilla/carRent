@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Contact Us | CarRent</title>
+
+    <link rel="stylesheet" href="../css/contact.css">
+
+</head>
+
+<body>
+
+<header>
+
+    <div class="logo">
+        🚗 CarRent
+    </div>
+
+    <nav>
+
+        <a href="../index.html">Home</a>
+
+        <a href="cars.html">Cars</a>
+
+        <a href="about.html">About</a>
+
+        <a href="contact.html" class="active">Contact</a>
+
+        <span id="userArea">
+
+            <a href="login.html"
+               class="loginBtn"
+               id="loginLink">
+
+                Login
+
+            </a>
+
+        </span>
+
+    </nav>
+
+</header>
+
+
+<!-- ==========================
+     CONTACT BANNER
+========================== -->
+
+<section class="contact-banner">
+
+    <h1>Contact Us</h1>
+
+    <p>
+        Have a question? We are here to help.
+    </p>
+
+</section>
+
+
+<!-- ==========================
+     CONTACT SECTION
+========================== -->
+
+<section class="contact-section">
+
+    <div class="contact-container">
+
+
+        <!-- Contact Information -->
+
+        <div class="contact-info">
+
+            <h2>Get In Touch</h2>
+
+            <p>
+                Contact us for any questions related
+                to vehicle rental and booking.
+            </p>
+
+
+            <div class="info-box">
+
+                <span>📍</span>
+
+                <div>
+
+                    <h3>Address</h3>
+
+                    <p>
+                        Boisar, Maharashtra, India
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="info-box">
+
+                <span>📞</span>
+
+                <div>
+
+                    <h3>Phone</h3>
+
+                    <p>
+                        +91 98765 43210
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="info-box">
+
+                <span>📧</span>
+
+                <div>
+
+                    <h3>Email</h3>
+
+                    <p>
+                        support@nextride.com
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Contact Form -->
+
+        <div class="contact-form-box">
+
+            <h2>Send Us a Message</h2>
+
+            <form id="contactForm">
+
+                <label for="contactName">
+                    Full Name
+                </label>
+
+                <input
+                    type="text"
+                    id="contactName"
+                    placeholder="Enter your name"
+                    required
+                >
+
+                <small id="contactNameError"
+                       class="error">
+                </small>
+
+
+                <label for="contactEmail">
+                    Email
+                </label>
+
+                <input
+                    type="email"
+                    id="contactEmail"
+                    placeholder="Enter your email"
+                    required
+                >
+
+                <small id="contactEmailError"
+                       class="error">
+                </small>
+
+
+                <label for="contactPhone">
+                    Phone Number
+                </label>
+
+                <input
+                    type="tel"
+                    id="contactPhone"
+                    maxlength="10"
+                    placeholder="Enter 10 digit phone number"
+                    required
+                >
+
+                <small id="contactPhoneError"
+                       class="error">
+                </small>
+
+
+                <label for="message">
+                    Message
+                </label>
+
+                <textarea
+                    id="message"
+                    rows="5"
+                    placeholder="Write your message..."
+                    required
+                ></textarea>
+
+                <small id="messageError"
+                       class="error">
+                </small>
+
+
+                <button type="submit">
+                    Send Message
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ==========================
+     SUCCESS POPUP
+========================== -->
+
+<div id="contactSuccess"
+     class="modal">
+
+    <div class="modal-box">
+
+        <div class="checkmark">
+            ✅
+        </div>
+
+        <h2>Message Sent!</h2>
+
+        <p>
+            Thank you for contacting Next Ride.
+            We will get back to you soon.
+        </p>
+
+        <button id="closeSuccess">
+            OK
+        </button>
+
+    </div>
+
+</div>
+
+
+<footer>
+
+    <p>
+        © 2026 Next Ride | Vehicle Rental Management System
+    </p>
+
+</footer>
+
+
+<script src="../js/contact.js"></script>
+
+<script src="../js/navbar.js"></script>
+
+</body>
+
+</html>

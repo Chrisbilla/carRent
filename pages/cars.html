@@ -1,0 +1,246 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Available Cars | CarRent</title>
+    <link rel="stylesheet" href="../css/cars.css">
+</head>
+
+<body>
+
+    <header>
+        <div class="logo">🚗 CarRent</div>
+
+        <nav>
+            <a href="../index.html">Home</a>
+            <a href="cars.html" class="active">Cars</a>
+            <a href="about.html">About</a>
+            <a href="contact.html">Contact</a>
+
+            <span id="userArea">
+                <a href="login.html" class="loginBtn" id="loginLink">Login</a>
+            </span>
+        </nav>
+    </header>
+
+    <section class="banner">
+        <h1>Available Cars</h1>
+        <p>Select your favourite car and book instantly.</p>
+    </section>
+
+    <section class="search-box">
+        <input type="text" id="searchInput" placeholder="Search Car...">
+    </section>
+
+    <section class="car-container" id="carContainer">
+
+        <div class="car-card" data-car="Mahindra Thar">
+            <img src="../images/thar.jpg" alt="Mahindra Thar">
+            <h2>Mahindra Thar</h2>
+            <div class="rating">⭐⭐⭐⭐⭐</div>
+            <p><b>Price :</b> ₹3500 / Day</p>
+            <p><b>Fuel :</b> Diesel</p>
+            <p><b>Transmission :</b> Manual</p>
+            <p><b>Seats :</b> 4</p>
+            <span class="available availability-status">Checking status...</span>
+            <a href="booking.html?car=Mahindra%20Thar" class="rent-btn">Rent Now</a>
+        </div>
+
+        <div class="car-card" data-car="Hyundai Creta">
+            <img src="../images/creta.jpg" alt="Hyundai Creta">
+            <h2>Hyundai Creta</h2>
+            <div class="rating">⭐⭐⭐⭐☆</div>
+            <p><b>Price :</b> ₹2500 / Day</p>
+            <p><b>Fuel :</b> Petrol</p>
+            <p><b>Transmission :</b> Automatic</p>
+            <p><b>Seats :</b> 5</p>
+            <span class="available availability-status">Checking status...</span>
+            <a href="booking.html?car=Hyundai%20Creta" class="rent-btn">Rent Now</a>
+        </div>
+
+        <div class="car-card" data-car="Tata Harrier">
+            <img src="../images/harrier.jpg" alt="Tata Harrier">
+            <h2>Tata Harrier</h2>
+            <div class="rating">⭐⭐⭐⭐⭐</div>
+            <p><b>Price :</b> ₹3200 / Day</p>
+            <p><b>Fuel :</b> Diesel</p>
+            <p><b>Transmission :</b> Manual</p>
+            <p><b>Seats :</b> 5</p>
+            <span class="available availability-status">Checking status...</span>
+            <a href="booking.html?car=Tata%20Harrier" class="rent-btn">Rent Now</a>
+        </div>
+
+        <div class="car-card" data-car="Toyota Fortuner">
+            <img src="../images/fortuner.jpg" alt="Toyota Fortuner">
+            <h2>Toyota Fortuner</h2>
+            <div class="rating">⭐⭐⭐⭐⭐</div>
+            <p><b>Price :</b> ₹5000 / Day</p>
+            <p><b>Fuel :</b> Diesel</p>
+            <p><b>Transmission :</b> Automatic</p>
+            <p><b>Seats :</b> 7</p>
+            <span class="available availability-status">Checking status...</span>
+            <a href="booking.html?car=Toyota%20Fortuner" class="rent-btn">Rent Now</a>
+        </div>
+
+        <div class="car-card" data-car="Maruti Brezza">
+            <img src="../images/brezza.jpg" alt="Maruti Brezza">
+            <h2>Maruti Brezza</h2>
+            <div class="rating">⭐⭐⭐⭐☆</div>
+            <p><b>Price :</b> ₹2200 / Day</p>
+            <p><b>Fuel :</b> Petrol</p>
+            <p><b>Transmission :</b> Manual</p>
+            <p><b>Seats :</b> 5</p>
+            <span class="available availability-status">Checking status...</span>
+            <a href="booking.html?car=Maruti%20Brezza" class="rent-btn">Rent Now</a>
+        </div>
+
+        <div class="car-card" data-car="BMW M4 Competition">
+            <img src="../images/bmwm4.jpg" alt="BMW M4 Competition">
+            <h2>BMW M4 Competition</h2>
+            <div class="rating">⭐⭐⭐⭐⭐</div>
+            <p><b>Price :</b> ₹8000 / Day</p>
+            <p><b>Fuel :</b> Petrol</p>
+            <p><b>Transmission :</b> Automatic</p>
+            <p><b>Seats :</b> 4</p>
+            <span class="available availability-status">Checking status...</span>
+            <a href="booking.html?car=BMW%20M4%20Competition" class="rent-btn">Rent Now</a>
+        </div>
+
+    </section>
+
+    <p id="availabilityMessage" style="text-align:center; margin:20px; color:#b91c1c;"></p>
+
+    <script src="../js/cars.js"></script>
+    <script src="../js/navbar.js"></script>
+
+    <div id="logoutToast" class="toast">✅ Logout Successful</div>
+
+    <script>
+        const CAR_API_URL = "http://localhost:5000/api/cars";
+
+        async function loadCarAvailability() {
+            const message = document.getElementById("availabilityMessage");
+
+            try {
+                const response = await fetch(CAR_API_URL);
+
+                if (!response.ok) {
+                    throw new Error("Backend returned HTTP " + response.status);
+                }
+
+                const result = await response.json();
+
+                if (!result.success || !Array.isArray(result.cars)) {
+                    throw new Error("Invalid cars data received from backend.");
+                }
+
+                const carsByName = new Map(
+                    result.cars.map(car => [
+                        String(car.car_name).trim().toLowerCase(),
+                        car
+                    ])
+                );
+
+                document.querySelectorAll(".car-card[data-car]").forEach(card => {
+                    const carName = card.dataset.car.trim().toLowerCase();
+                    const car = carsByName.get(carName);
+                    const status = card.querySelector(".availability-status");
+                    const rentButton = card.querySelector(".rent-btn");
+
+                    if (!car) {
+                        status.textContent = "Status unavailable";
+                        status.className = "availability-status unavailable";
+                        rentButton.removeAttribute("href");
+                        rentButton.setAttribute("aria-disabled", "true");
+                        rentButton.style.pointerEvents = "none";
+                        rentButton.style.opacity = "0.5";
+                        rentButton.textContent = "Currently Unavailable";
+                        return;
+                    }
+
+                    const isAvailable =
+                        car.is_available === true ||
+                        car.is_available === 1 ||
+                        car.is_available === "1";
+
+                    if (isAvailable) {
+                        status.textContent = "Available";
+                        status.className = "availability-status available";
+
+                        rentButton.href =
+                            "booking.html?car=" + encodeURIComponent(car.car_name);
+
+                        rentButton.removeAttribute("aria-disabled");
+                        rentButton.style.pointerEvents = "";
+                        rentButton.style.opacity = "";
+                        rentButton.textContent = "Rent Now";
+                    } else {
+                        status.textContent = "Not Available";
+                        status.className = "availability-status unavailable";
+
+                        rentButton.removeAttribute("href");
+                        rentButton.setAttribute("aria-disabled", "true");
+                        rentButton.style.pointerEvents = "none";
+                        rentButton.style.opacity = "0.5";
+                        rentButton.textContent = "Currently Unavailable";
+                    }
+                });
+
+                message.textContent = "";
+            } catch (error) {
+                console.error("Availability loading error:", error);
+                message.textContent =
+                    "Could not load live availability. Please check that the backend is running.";
+
+                document.querySelectorAll(".car-card[data-car]").forEach(card => {
+                    const status = card.querySelector(".availability-status");
+                    const rentButton = card.querySelector(".rent-btn");
+
+                    status.textContent = "Status unavailable";
+                    status.className = "availability-status unavailable";
+
+                    // Fail safely: don't offer a booking if availability is unknown.
+                    rentButton.removeAttribute("href");
+                    rentButton.setAttribute("aria-disabled", "true");
+                    rentButton.style.pointerEvents = "none";
+                    rentButton.style.opacity = "0.5";
+                    rentButton.textContent = "Check Availability";
+                });
+            }
+        }
+
+        loadCarAvailability();
+
+        // Refresh status periodically while the page remains open.
+        setInterval(loadCarAvailability, 15000);
+    </script>
+
+    <style>
+        .availability-status {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 20px;
+            margin: 8px 0;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .availability-status.available {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .availability-status.unavailable {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .rent-btn[aria-disabled="true"] {
+            cursor: not-allowed;
+        }
+    </style>
+
+</body>
+</html>

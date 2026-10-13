@@ -1,0 +1,9 @@
+﻿node_modules/
+.env
+.env.*
+!.env.example
+dist/
+build/
+tarapur_ag_song_book/
+
+images/myqr.jpeg

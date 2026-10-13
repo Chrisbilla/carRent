@@ -1,0 +1,821 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CarRent | Admin Dashboard</title>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6fa;
+      color: #1e293b;
+    }
+
+    .topbar {
+      background: #111827;
+      color: white;
+      padding: 20px 5%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .brand { font-size: 25px; font-weight: bold; }
+    .brand span { color: #f59e0b; }
+
+    button {
+      border: 0;
+      padding: 9px 12px;
+      border-radius: 7px;
+      cursor: pointer;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    button:disabled { opacity: .55; cursor: not-allowed; }
+
+    .logout { background: #ef4444; color: white; }
+    .primary { background: #f59e0b; color: #111827; }
+    .secondary { background: #e2e8f0; color: #1e293b; }
+    .success { background: #16a34a; color: white; }
+    .danger { background: #dc2626; color: white; }
+    .paid { background: #0f766e; color: white; }
+
+    .actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      min-width: 190px;
+    }
+
+    .container {
+      max-width: 1450px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    h1 { margin-bottom: 8px; }
+    .subtitle { color: #64748b; margin-bottom: 25px; }
+
+    .login-box {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      max-width: 450px;
+      margin: 50px auto;
+      box-shadow: 0 5px 25px #0000000d;
+    }
+
+    label {
+      display: block;
+      margin: 15px 0 7px;
+      font-weight: bold;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      font-size: 15px;
+    }
+
+    .login-box button { width: 100%; margin-top: 18px; }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 18px;
+      margin: 25px 0;
+    }
+
+    .card {
+      background: white;
+      padding: 23px;
+      border-radius: 12px;
+      box-shadow: 0 4px 18px #00000008;
+      border-top: 4px solid #f59e0b;
+    }
+
+    .card p {
+      color: #64748b;
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+
+    .card h2 { font-size: 28px; overflow-wrap: anywhere; }
+
+    .panel {
+      background: white;
+      border-radius: 12px;
+      padding: 22px;
+      margin-top: 25px;
+      box-shadow: 0 4px 18px #00000008;
+    }
+
+    .panel-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 900px;
+    }
+
+    th, td {
+      padding: 13px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th { background: #f8fafc; color: #475569; }
+
+    .status {
+      display: inline-block;
+      padding: 5px 9px;
+      border-radius: 20px;
+      background: #fef3c7;
+      color: #92400e;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .status.confirmed,
+    .status.paid,
+    .status.available {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status.cancelled,
+    .status.unavailable {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .message {
+      margin-top: 15px;
+      color: #b91c1c;
+      white-space: pre-wrap;
+    }
+
+    .success-message { color: #15803d; }
+    .hidden { display: none !important; }
+    .empty { padding: 20px; color: #64748b; }
+
+    .car-description {
+      color: #64748b;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+
+    @media (max-width: 850px) {
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 480px) {
+      .cards { grid-template-columns: 1fr; }
+      .container { padding: 0 12px; }
+      .panel { padding: 14px; }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="brand">Car<span>Rent</span> Admin</div>
+    <button id="logoutBtn" class="logout hidden">Logout</button>
+  </header>
+
+  <main class="container">
+
+    <!-- ADMIN LOGIN -->
+    <section id="loginSection" class="login-box">
+      <h1>Admin Login</h1>
+      <p class="subtitle">Enter your backend admin API key to continue.</p>
+
+      <form id="loginForm">
+        <label for="adminKey">Admin API Key</label>
+        <input
+          id="adminKey"
+          type="password"
+          required
+          placeholder="Enter your admin API key"
+          autocomplete="current-password"
+        >
+        <button class="primary" type="submit">Login to Dashboard</button>
+      </form>
+
+      <p id="loginMessage" class="message"></p>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="hidden">
+      <h1>Dashboard Overview</h1>
+      <p class="subtitle">Manage your CarRent bookings, cars and users.</p>
+
+      <div class="cards">
+        <div class="card">
+          <p>Total Bookings</p>
+          <h2 id="totalBookings">—</h2>
+        </div>
+
+        <div class="card">
+          <p>Confirmed Bookings</p>
+          <h2 id="confirmedBookings">—</h2>
+        </div>
+
+        <div class="card">
+          <p>Pending Bookings</p>
+          <h2 id="pendingBookings">—</h2>
+        </div>
+
+        <div class="card">
+          <p>Users Listed</p>
+          <h2 id="totalUsers">—</h2>
+        </div>
+      </div>
+
+      <!-- MANAGE CARS -->
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>Manage Cars</h2>
+          <button id="refreshCarsBtn" class="primary">Refresh Cars</button>
+        </div>
+
+        <p class="car-description">
+          Manage car availability. Cars marked Not Available should not be
+          offered for new bookings.
+        </p>
+
+        <div class="table-wrap">
+          <table style="min-width: 600px;">
+            <thead>
+              <tr>
+                <th>Car ID</th>
+                <th>Car Name</th>
+                <th>Availability</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+
+            <tbody id="carsBody">
+              <tr><td colspan="4">Loading cars...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- MANAGE BOOKINGS -->
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>Manage Bookings</h2>
+          <button id="refreshBtn" class="primary">Refresh Data</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Email</th>
+                <th>Car</th>
+                <th>Rental Type</th>
+                <th>Total Rent</th>
+                <th>Booking Status</th>
+                <th>Payment Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody id="bookingsBody">
+              <tr><td colspan="9">Loading bookings...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- MANAGE USERS -->
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>Manage Users</h2>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody id="usersBody">
+              <tr><td colspan="5">Loading users...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <p id="dashboardMessage" class="message"></p>
+    </section>
+  </main>
+
+  <script>
+    const API_URL = "http://localhost:5000";
+
+    const loginSection = document.getElementById("loginSection");
+    const dashboard = document.getElementById("dashboard");
+    const loginForm = document.getElementById("loginForm");
+    const loginMessage = document.getElementById("loginMessage");
+    const dashboardMessage = document.getElementById("dashboardMessage");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    let adminKey = "";
+
+    function safeText(value) {
+      return String(value ?? "—");
+    }
+
+    function addCell(row, value) {
+      const cell = document.createElement("td");
+      cell.textContent = safeText(value);
+      row.appendChild(cell);
+      return cell;
+    }
+
+    function addButton(label, className, onClick) {
+      const button = document.createElement("button");
+      button.textContent = label;
+      button.className = className;
+      button.addEventListener("click", onClick);
+      return button;
+    }
+
+    function getRows(data, possibleKeys) {
+      if (Array.isArray(data)) return data;
+
+      for (const key of possibleKeys) {
+        if (Array.isArray(data?.[key])) return data[key];
+      }
+
+      return [];
+    }
+
+    function money(value) {
+      const amount = Number(value);
+
+      return Number.isFinite(amount)
+        ? "₹" + amount.toLocaleString("en-IN")
+        : "—";
+    }
+
+    async function apiRequest(path, method = "GET", body = null) {
+      const options = {
+        method,
+        headers: {
+          "Accept": "application/json",
+          "x-admin-key": adminKey
+        }
+      };
+
+      if (body !== null) {
+        options.headers["Content-Type"] = "application/json";
+        options.body = JSON.stringify(body);
+      }
+
+      const response = await fetch(API_URL + path, options);
+      const text = await response.text();
+
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(
+          "Unexpected backend response. Check that server.js is running."
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Request failed: HTTP " + response.status
+        );
+      }
+
+      return data;
+    }
+
+    function showMessage(message, isSuccess = false) {
+      dashboardMessage.textContent = message;
+      dashboardMessage.className = isSuccess
+        ? "message success-message"
+        : "message";
+
+      window.scrollTo({
+        top: document.body.scrollHeight,
+        behavior: "smooth"
+      });
+    }
+
+    // LOAD CARS
+    async function loadCars() {
+      const carsBody = document.getElementById("carsBody");
+
+      carsBody.innerHTML =
+        '<tr><td colspan="4">Loading cars...</td></tr>';
+
+      try {
+        const result = await apiRequest("/api/admin/cars");
+        const cars = getRows(result, ["cars", "data", "recordset"]);
+
+        carsBody.replaceChildren();
+
+        if (cars.length === 0) {
+          carsBody.innerHTML =
+            '<tr><td colspan="4" class="empty">No cars found.</td></tr>';
+          return;
+        }
+
+        cars.forEach(car => {
+          const row = document.createElement("tr");
+
+          addCell(row, car.id);
+          addCell(row, car.car_name);
+
+          const available =
+            car.is_available === true ||
+            car.is_available === 1 ||
+            car.is_available === "1";
+
+          const statusCell = document.createElement("td");
+          const badge = document.createElement("span");
+
+          badge.className = "status " +
+            (available ? "available" : "unavailable");
+
+          badge.textContent = available
+            ? "Available"
+            : "Not Available";
+
+          statusCell.appendChild(badge);
+          row.appendChild(statusCell);
+
+          const actionCell = document.createElement("td");
+
+          const toggleButton = addButton(
+            available ? "Mark Not Available" : "Mark Available",
+            available ? "danger" : "success",
+            () => updateCarAvailability(car.id, !available)
+          );
+
+          actionCell.appendChild(toggleButton);
+          row.appendChild(actionCell);
+
+          carsBody.appendChild(row);
+        });
+      } catch (error) {
+        carsBody.innerHTML =
+          '<tr><td colspan="4">Could not load cars.</td></tr>';
+
+        showMessage("Cars error: " + error.message);
+      }
+    }
+
+    // UPDATE CAR AVAILABILITY
+    async function updateCarAvailability(id, isAvailable) {
+      const newStatus = isAvailable
+        ? "Available"
+        : "Not Available";
+
+      if (!confirm("Change this car's status to " + newStatus + "?")) {
+        return;
+      }
+
+      try {
+        const result = await apiRequest(
+          "/api/admin/cars/" +
+            encodeURIComponent(id) +
+            "/availability",
+          "PUT",
+          { is_available: isAvailable }
+        );
+
+        showMessage(
+          result.message || "Car availability updated successfully.",
+          true
+        );
+
+        await loadCars();
+      } catch (error) {
+        showMessage("Could not update car: " + error.message);
+      }
+    }
+
+    // UPDATE BOOKING STATUS
+    async function updateBookingStatus(id, bookingStatus) {
+      const actionText = bookingStatus === "Cancelled"
+        ? "cancel this booking"
+        : "change this booking status to " + bookingStatus;
+
+      if (!confirm("Are you sure you want to " + actionText + "?")) {
+        return;
+      }
+
+      try {
+        const result = await apiRequest(
+          "/api/admin/bookings/" +
+            encodeURIComponent(id) +
+            "/status",
+          "PUT",
+          { bookingStatus }
+        );
+
+        showMessage(result.message || "Booking status updated.", true);
+        await loadDashboard();
+      } catch (error) {
+        showMessage(error.message);
+      }
+    }
+
+    // UPDATE PAYMENT STATUS
+    async function updatePaymentStatus(id, paymentStatus) {
+      if (!confirm("Change payment status to " + paymentStatus + "?")) {
+        return;
+      }
+
+      try {
+        const result = await apiRequest(
+          "/api/admin/bookings/" +
+            encodeURIComponent(id) +
+            "/payment",
+          "PUT",
+          { paymentStatus }
+        );
+
+        showMessage(result.message || "Payment status updated.", true);
+        await loadDashboard();
+      } catch (error) {
+        showMessage(error.message);
+      }
+    }
+
+    // DELETE USER
+    async function deleteUser(id, name) {
+      if (!confirm(
+        'Delete user "' + name + '"? This action cannot be undone.'
+      )) {
+        return;
+      }
+
+      try {
+        const result = await apiRequest(
+          "/api/admin/users/" + encodeURIComponent(id),
+          "DELETE"
+        );
+
+        showMessage(result.message || "User deleted successfully.", true);
+        await loadDashboard();
+      } catch (error) {
+        showMessage(error.message);
+      }
+    }
+
+    // LOAD BOOKINGS AND USERS
+    async function loadDashboard() {
+      dashboardMessage.textContent = "";
+
+      const bookingsBody = document.getElementById("bookingsBody");
+      const usersBody = document.getElementById("usersBody");
+
+      bookingsBody.innerHTML =
+        '<tr><td colspan="9">Loading bookings...</td></tr>';
+
+      usersBody.innerHTML =
+        '<tr><td colspan="5">Loading users...</td></tr>';
+
+      try {
+        const results = await Promise.all([
+          apiRequest("/api/admin/bookings"),
+          apiRequest("/api/admin/users")
+        ]);
+
+        const bookings = getRows(results[0], [
+          "bookings", "data", "recordset"
+        ]);
+
+        const users = getRows(results[1], [
+          "users", "data", "recordset"
+        ]);
+
+        document.getElementById("totalBookings").textContent =
+          bookings.length;
+
+        document.getElementById("confirmedBookings").textContent =
+          bookings.filter(b =>
+            String(b.booking_status || "").toLowerCase() === "confirmed"
+          ).length;
+
+        document.getElementById("pendingBookings").textContent =
+          bookings.filter(b =>
+            String(b.booking_status || "").toLowerCase() === "pending"
+          ).length;
+
+        document.getElementById("totalUsers").textContent =
+          users.length;
+
+        bookingsBody.replaceChildren();
+
+        if (bookings.length === 0) {
+          bookingsBody.innerHTML =
+            '<tr><td colspan="9" class="empty">No bookings found.</td></tr>';
+        }
+
+        bookings.forEach(booking => {
+          const row = document.createElement("tr");
+
+          addCell(row, booking.id);
+          addCell(row, booking.full_name);
+          addCell(row, booking.email);
+          addCell(row, booking.car);
+          addCell(row, booking.rental_type);
+          addCell(row, money(booking.total_rent));
+
+          const bookingStatus = String(
+            booking.booking_status || "Pending"
+          );
+
+          const statusCell = addCell(row, "");
+          const badge = document.createElement("span");
+
+          badge.className = "status " + bookingStatus.toLowerCase();
+          badge.textContent = bookingStatus;
+          statusCell.appendChild(badge);
+
+          const paymentStatus = String(
+            booking.payment_status || "Pending"
+          );
+
+          const paymentCell = addCell(row, "");
+          const paymentBadge = document.createElement("span");
+
+          paymentBadge.className =
+            "status " + paymentStatus.toLowerCase();
+
+          paymentBadge.textContent = paymentStatus;
+          paymentCell.appendChild(paymentBadge);
+
+          const actionCell = document.createElement("td");
+          const actions = document.createElement("div");
+
+          actions.className = "actions";
+
+          if (
+            bookingStatus.toLowerCase() !== "confirmed" &&
+            bookingStatus.toLowerCase() !== "cancelled"
+          ) {
+            actions.appendChild(
+              addButton("Confirm", "success", () =>
+                updateBookingStatus(booking.id, "Confirmed")
+              )
+            );
+          }
+
+          if (bookingStatus.toLowerCase() !== "cancelled") {
+            actions.appendChild(
+              addButton("Cancel", "danger", () =>
+                updateBookingStatus(booking.id, "Cancelled")
+              )
+            );
+          }
+
+          if (paymentStatus.toLowerCase() !== "paid") {
+            actions.appendChild(
+              addButton("Mark Paid", "paid", () =>
+                updatePaymentStatus(booking.id, "Paid")
+              )
+            );
+          } else {
+            actions.appendChild(
+              addButton("Mark Pending", "secondary", () =>
+                updatePaymentStatus(booking.id, "Pending")
+              )
+            );
+          }
+
+          actionCell.appendChild(actions);
+          row.appendChild(actionCell);
+          bookingsBody.appendChild(row);
+        });
+
+        usersBody.replaceChildren();
+
+        if (users.length === 0) {
+          usersBody.innerHTML =
+            '<tr><td colspan="5" class="empty">No users found.</td></tr>';
+        }
+
+        users.forEach(user => {
+          const row = document.createElement("tr");
+
+          addCell(row, user.id);
+          addCell(row, user.full_name ?? user.name);
+          addCell(row, user.email);
+          addCell(row, user.phone);
+
+          const actionCell = document.createElement("td");
+
+          actionCell.appendChild(
+            addButton("Delete User", "danger", () =>
+              deleteUser(
+                user.id,
+                user.full_name ?? user.name ?? user.email
+              )
+            )
+          );
+
+          row.appendChild(actionCell);
+          usersBody.appendChild(row);
+        });
+      } catch (error) {
+        dashboardMessage.textContent = error.message;
+
+        bookingsBody.innerHTML =
+          '<tr><td colspan="9">Could not load bookings.</td></tr>';
+
+        usersBody.innerHTML =
+          '<tr><td colspan="5">Could not load users.</td></tr>';
+      }
+    }
+
+    // ADMIN LOGIN
+    loginForm.addEventListener("submit", async function(event) {
+      event.preventDefault();
+
+      adminKey = document.getElementById("adminKey").value.trim();
+      loginMessage.textContent = "Checking admin access...";
+
+      try {
+        await apiRequest("/api/admin/bookings");
+
+        loginSection.classList.add("hidden");
+        dashboard.classList.remove("hidden");
+        logoutBtn.classList.remove("hidden");
+
+        loginMessage.textContent = "";
+
+        await loadDashboard();
+        await loadCars();
+      } catch (error) {
+        adminKey = "";
+
+        loginMessage.textContent =
+          error.message + " Check your admin key and backend server.";
+      }
+    });
+
+    // REFRESH BUTTONS
+    document.getElementById("refreshBtn").addEventListener(
+      "click",
+      loadDashboard
+    );
+
+    document.getElementById("refreshCarsBtn").addEventListener(
+      "click",
+      loadCars
+    );
+
+    // LOGOUT
+    logoutBtn.addEventListener("click", function() {
+      adminKey = "";
+      document.getElementById("adminKey").value = "";
+
+      dashboard.classList.add("hidden");
+      logoutBtn.classList.add("hidden");
+      loginSection.classList.remove("hidden");
+
+      loginMessage.textContent = "";
+      dashboardMessage.textContent = "";
+    });
+  </script>
+</body>
+</html>

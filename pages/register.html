@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Register | CarRent</title>
+
+    <link rel="stylesheet" href="../css/register.css">
+
+    <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+</head>
+
+<body>
+
+<header>
+
+    <div class="logo">🚗 CarRent</div>
+
+    <nav>
+
+        <a href="../index.html">Home</a>
+        <a href="cars.html">Cars</a>
+        <a href="about.html">About</a>
+        <a href="contact.html">Contact</a>
+
+    </nav>
+
+</header>
+
+<section class="register-container">
+
+    <div class="register-box">
+
+        <h1>Create Account</h1>
+
+        <p>Register to continue</p>
+
+        <form id="registerForm">
+
+            <label>Full Name</label>
+
+            <input
+                type="text"
+                id="fullName"
+                placeholder="Enter Full Name"
+                required
+            >
+
+            <small id="nameError" class="error"></small>
+
+            <label>Email</label>
+
+            <input
+                type="email"
+                id="email"
+                placeholder="Enter Email"
+                required
+            >
+
+            <small id="emailError" class="error"></small>
+
+            <label>Phone Number</label>
+
+            <input
+                type="tel"
+                id="phone"
+                maxlength="10"
+                placeholder="Enter Phone Number"
+                required
+            >
+
+            <small id="phoneError" class="error"></small>
+
+            <label>Password</label>
+
+            <div class="password-box">
+
+                <input
+                    type="password"
+                    id="password"
+                    placeholder="Create Password"
+                    required
+                >
+
+                <i
+                    class="fa-solid fa-eye"
+                    id="togglePassword"
+                ></i>
+
+            </div>
+
+            <small id="passwordError" class="error"></small>
+
+            <label>Confirm Password</label>
+
+            <div class="password-box">
+
+                <input
+                    type="password"
+                    id="confirmPassword"
+                    placeholder="Confirm Password"
+                    required
+                >
+
+                <i
+                    class="fa-solid fa-eye"
+                    id="toggleConfirmPassword"
+                ></i>
+
+            </div>
+
+            <small id="confirmError" class="error"></small>
+
+            <button type="submit">
+
+                Register
+
+            </button>
+
+            <p class="login-link">
+
+                Already have an account?
+
+                <a href="login.html">
+
+                    Login
+
+                </a>
+
+            </p>
+
+        </form>
+
+    </div>
+
+</section>
+
+<script src="../js/register.js"></script>
+
+<!-- Registration Success Popup -->
+
+<div id="registerSuccess" class="modal">
+
+    <div class="modal-box">
+
+        <div class="checkmark">✅</div>
+
+        <h2>Registration Successful!</h2>
+
+        <p>
+            Your account has been created successfully.
+        </p>
+
+        <button id="goLogin">
+            Go To Login
+        </button>
+
+    </div>
+
+</div>
+
+</body>
+</html>

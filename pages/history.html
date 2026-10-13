@@ -1,0 +1,534 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Booking History | CarRent</title>
+    <link rel="stylesheet" href="../css/booking.css">
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            color: #222;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            padding: 18px 6%;
+            background: #111827;
+            color: white;
+        }
+
+        .logo { font-size: 23px; font-weight: bold; }
+
+        nav {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 18px;
+        }
+
+        nav a { color: white; text-decoration: none; }
+        nav a:hover { color: #93c5fd; }
+
+        .page {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 0 18px;
+        }
+
+        .subtitle { color: #666; margin-bottom: 25px; }
+
+        .booking-card {
+            background: white;
+            border-radius: 12px;
+            padding: 22px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 14px #0000000d;
+            border: 1px solid #e5e7eb;
+        }
+
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 14px;
+        }
+
+        .car-name { font-size: 21px; font-weight: bold; }
+
+        .booking-id {
+            display: block;
+            margin-top: 7px;
+            color: #666;
+            font-size: 13px;
+        }
+
+        .details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 20px;
+            padding-top: 20px;
+        }
+
+        .detail-label {
+            color: #777;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .detail-value { font-weight: 600; overflow-wrap: anywhere; }
+
+        .status {
+            display: inline-block;
+            padding: 6px 11px;
+            border-radius: 20px;
+            background: #eee;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status.confirmed, .status.paid, .status.completed {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status.cancelled, .status.failed, .status.rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .total { font-size: 19px; color: #15803d; }
+
+        .receipt-btn, .button {
+            display: inline-block;
+            margin-top: 22px;
+            padding: 11px 17px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+        }
+
+        .receipt-btn:hover, .button:hover { background: #1d4ed8; }
+
+        .empty, .message {
+            text-align: center;
+            padding: 35px 18px;
+            background: white;
+            border-radius: 12px;
+            line-height: 1.8;
+        }
+
+        @media (max-width: 600px) {
+            header { padding: 16px; }
+            nav { gap: 12px; }
+            .page { margin-top: 25px; }
+            .booking-card { padding: 16px; }
+        }
+    </style>
+</head>
+
+<body>
+<header>
+    <div class="logo">🚗 CarRent</div>
+    <nav>
+        <a href="../index.html">Home</a>
+        <a href="cars.html">Cars</a>
+        <a href="history.html">My Bookings</a>
+        <a href="about.html">About</a>
+        <a href="contact.html">Contact</a>
+        <span id="userArea">
+            <a href="login.html" id="loginLink">Login</a>
+        </span>
+    </nav>
+</header>
+
+<main class="page">
+    <h1>My Booking History</h1>
+    <p class="subtitle">View your bookings and download your booking receipts.</p>
+    <div id="bookingList" class="message">Loading your bookings...</div>
+</main>
+
+<script src="../js/navbar.js"></script>
+
+<script>
+const API_URL = "http://localhost:5000";
+let currentUser = null;
+let bookingRecords = [];
+
+document.addEventListener("DOMContentLoaded", loadBookingHistory);
+
+function getValue(obj, ...keys) {
+    for (const key of keys) {
+        if (obj && obj[key] !== undefined && obj[key] !== null && obj[key] !== "") {
+            return obj[key];
+        }
+    }
+    return "";
+}
+
+function safeText(value) {
+    const span = document.createElement("span");
+    span.textContent = String(value ?? "");
+    return span.innerHTML;
+}
+
+function formatDate(value) {
+    if (!value) return "—";
+
+    const text = String(value);
+    const match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+    if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? text : date.toLocaleDateString("en-IN");
+}
+
+function statusClass(value) {
+    const status = String(value || "Pending").toLowerCase();
+
+    if (status.includes("confirm") || status === "paid" || status === "success") {
+        return "confirmed";
+    }
+    if (status.includes("complete")) return "completed";
+    if (status.includes("cancel")) return "cancelled";
+    if (status.includes("fail")) return "failed";
+    if (status.includes("reject")) return "rejected";
+
+    return "pending";
+}
+
+function statusBadge(value) {
+    const label = value || "Pending";
+    return `<span class="status ${statusClass(label)}">${safeText(label)}</span>`;
+}
+
+async function loadBookingHistory() {
+    const list = document.getElementById("bookingList");
+
+    try {
+        currentUser = JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+        currentUser = null;
+    }
+
+    if (!currentUser || !currentUser.email) {
+        list.innerHTML = `
+            <div class="empty">
+                <h3>Please log in to view your bookings.</h3>
+                <a class="button" href="login.html">Login</a>
+            </div>`;
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `${API_URL}/api/bookings/history?email=${encodeURIComponent(currentUser.email)}`
+        );
+
+        let result;
+        try {
+            result = await response.json();
+        } catch {
+            throw new Error("Server returned an invalid response. Check that the backend is running.");
+        }
+
+        if (!response.ok || result.success === false) {
+            throw new Error(result.message || "Could not load bookings.");
+        }
+
+        bookingRecords = Array.isArray(result)
+            ? result
+            : (result.bookings || result.history || []);
+
+        if (!Array.isArray(bookingRecords) || bookingRecords.length === 0) {
+            list.className = "message";
+            list.innerHTML = `
+                <div class="empty">
+                    <h3>No bookings found</h3>
+                    <p>Your bookings will appear here after you book a car.</p>
+                    <a class="button" href="cars.html">Browse Cars</a>
+                </div>`;
+            return;
+        }
+
+        bookingRecords.sort((a, b) => {
+            const dateA = new Date(getValue(a, "created_at", "createdAt") || 0);
+            const dateB = new Date(getValue(b, "created_at", "createdAt") || 0);
+            return dateB - dateA;
+        });
+
+        list.className = "";
+        list.innerHTML = bookingRecords.map((booking, index) => {
+            const car = getValue(booking, "car", "car_name", "carName") || "Car";
+            const bookingId = getValue(booking, "id", "bookingId", "booking_id") || "—";
+            const pickupDate = getValue(booking, "pickup_date", "pickupDate");
+            const returnDate = getValue(booking, "return_date", "returnDate");
+            const pickupTime = getValue(booking, "pickup_time", "pickupTime");
+            const returnTime = getValue(booking, "return_time", "returnTime");
+            const duration = getValue(booking, "duration") || "—";
+            const rentalType = getValue(booking, "rental_type", "rentalType") || "—";
+            const location = getValue(booking, "pickup_location", "pickupLocation") || "—";
+            const total = Number(getValue(booking, "total_rent", "totalRent") || 0);
+            const bookingStatus = getValue(booking, "booking_status", "bookingStatus") || "Pending";
+            const paymentStatus = getValue(booking, "payment_status", "paymentStatus") || "Pending";
+
+            // Keep receipt details in JavaScript instead of an HTML data attribute.
+            const receiptData = {
+                bookingId,
+                car,
+                pickupDate,
+                returnDate,
+                pickupTime,
+                returnTime,
+                duration,
+                rentalType,
+                location,
+                total,
+                bookingStatus,
+                paymentStatus,
+                fullName: getValue(booking, "full_name", "fullName") ||
+                    currentUser.fullName || currentUser.name || "",
+                email: getValue(booking, "email") || currentUser.email
+            };
+
+            return `
+                <article class="booking-card">
+                    <div class="card-top">
+                        <div>
+                            <div class="car-name">${safeText(car)}</div>
+                            <span class="booking-id">Booking ID: ${safeText(bookingId)}</span>
+                        </div>
+                        <div>${statusBadge(bookingStatus)}</div>
+                    </div>
+
+                    <div class="details">
+                        <div>
+                            <div class="detail-label">Pickup Date</div>
+                            <div class="detail-value">${safeText(formatDate(pickupDate))}</div>
+                            <div>${safeText(pickupTime)}</div>
+                        </div>
+
+                        <div>
+                            <div class="detail-label">Return Date</div>
+                            <div class="detail-value">${safeText(formatDate(returnDate || pickupDate))}</div>
+                            <div>${safeText(returnTime)}</div>
+                        </div>
+
+                        <div>
+                            <div class="detail-label">Rental Type / Duration</div>
+                            <div class="detail-value">${safeText(rentalType)} / ${safeText(duration)}</div>
+                        </div>
+
+                        <div>
+                            <div class="detail-label">Pickup Location</div>
+                            <div class="detail-value">${safeText(location)}</div>
+                        </div>
+
+                        <div>
+                            <div class="detail-label">Total Rent</div>
+                            <div class="detail-value total">₹${total.toLocaleString("en-IN")}</div>
+                        </div>
+
+                        <div>
+                            <div class="detail-label">Payment Status</div>
+                            <div>${statusBadge(paymentStatus)}</div>
+                        </div>
+                    </div>
+
+                    <button type="button" class="receipt-btn"
+                        onclick="downloadReceipt(${index})">
+                        Download Receipt (PDF)
+                    </button>
+                </article>`;
+        }).join("");
+
+    } catch (error) {
+        console.error("Booking history error:", error);
+        list.className = "message";
+        list.textContent = error.message || "Could not connect to the server. Please try again.";
+    }
+}
+
+function downloadReceipt(index) {
+    const booking = bookingRecords[index];
+
+    if (!booking) {
+        alert("Booking details not found. Please refresh the page.");
+        return;
+    }
+
+    const bookingId = getValue(booking, "id", "bookingId", "booking_id") || "—";
+    const car = getValue(booking, "car", "car_name", "carName") || "Car";
+    const pickupDate = getValue(booking, "pickup_date", "pickupDate");
+    const returnDate = getValue(booking, "return_date", "returnDate") || pickupDate;
+    const pickupTime = getValue(booking, "pickup_time", "pickupTime") || "—";
+    const returnTime = getValue(booking, "return_time", "returnTime") || "—";
+    const duration = getValue(booking, "duration") || "—";
+    const rentalType = getValue(booking, "rental_type", "rentalType") || "—";
+    const location = getValue(booking, "pickup_location", "pickupLocation") || "—";
+    const total = Number(getValue(booking, "total_rent", "totalRent") || 0);
+    const bookingStatus = getValue(booking, "booking_status", "bookingStatus") || "Pending";
+    const paymentStatus = getValue(booking, "payment_status", "paymentStatus") || "Pending";
+    const fullName = getValue(booking, "full_name", "fullName") ||
+        currentUser?.fullName || currentUser?.name || "";
+    const email = getValue(booking, "email") || currentUser?.email || "";
+
+    const receiptRows = [
+        ["Booking ID", bookingId],
+        ["Customer Name", fullName],
+        ["Email", email],
+        ["Car", car],
+        ["Rental Type", rentalType],
+        ["Pickup Date", formatDate(pickupDate)],
+        ["Pickup Time", pickupTime],
+        ["Return Date", formatDate(returnDate)],
+        ["Return Time", returnTime],
+        ["Duration", duration],
+        ["Pickup Location", location],
+        ["Booking Status", bookingStatus],
+        ["Payment Status", paymentStatus]
+    ];
+
+    const rowsHTML = receiptRows.map(([label, value]) => `
+        <div class="row">
+            <span class="label">${safeText(label)}</span>
+            <span class="value">${safeText(value || "—")}</span>
+        </div>
+    `).join("");
+
+    const printWindow = window.open("", "_blank");
+
+    if (!printWindow) {
+        alert("Please allow pop-ups for this page, then try again.");
+        return;
+    }
+
+    const receiptHTML = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>CarRent Receipt - ${safeText(bookingId)}</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    max-width: 800px;
+                    margin: 35px auto;
+                    padding: 20px;
+                    color: #222;
+                }
+                .header {
+                    border-bottom: 3px solid #2563eb;
+                    padding-bottom: 18px;
+                }
+                .brand {
+                    font-size: 28px;
+                    font-weight: bold;
+                    color: #2563eb;
+                }
+                .subtitle { color: #666; }
+                .section {
+                    margin-top: 25px;
+                    padding: 20px;
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                }
+                .row {
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 20px;
+                    padding: 12px 0;
+                    border-bottom: 1px solid #eee;
+                }
+                .row:last-child { border-bottom: none; }
+                .label { color: #666; }
+                .value {
+                    text-align: right;
+                    font-weight: bold;
+                    overflow-wrap: anywhere;
+                }
+                .total {
+                    color: #15803d;
+                    font-size: 22px;
+                    font-weight: bold;
+                }
+                .footer {
+                    margin-top: 30px;
+                    border-top: 1px solid #ddd;
+                    padding-top: 18px;
+                    text-align: center;
+                    color: #666;
+                    font-size: 12px;
+                }
+                .print-btn {
+                    background: #2563eb;
+                    color: white;
+                    padding: 12px 20px;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    margin-top: 20px;
+                }
+                @media print {
+                    body { margin: 0; padding: 10px; }
+                    .print-btn { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="brand">CarRent</div>
+                <h1>Booking Receipt</h1>
+                <p class="subtitle">Booking details for your records</p>
+            </div>
+
+            <div class="section">
+                ${rowsHTML}
+                <div class="row">
+                    <span class="label">Total Rent</span>
+                    <span class="total">₹${total.toLocaleString("en-IN")}</span>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>Thank you for choosing CarRent!</p>
+                <p>This receipt is not proof of payment unless payment has been completed.</p>
+                <p>Generated on ${safeText(new Date().toLocaleString("en-IN"))}</p>
+            </div>
+
+            <button class="print-btn" onclick="window.print()">Save / Download PDF</button>
+        </body>
+        </html>`;
+
+    printWindow.document.open();
+    printWindow.document.write(receiptHTML);
+    printWindow.document.close();
+}
+</script>
+</body>
+</html>
+```
