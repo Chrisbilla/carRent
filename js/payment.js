@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const upiId = document.getElementById("upiId");
 
     const submitButton = form.querySelector('[type="submit"]');
-    const API_URL = "http://localhost:5000";
+    const API_URL = "https://carrent-backend-v2hq.onrender.com";
 
     const total = localStorage.getItem("totalRent");
 

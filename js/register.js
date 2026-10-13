@@ -291,7 +291,7 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
 
             const response = await fetch(
-                "http://localhost:5000/api/register",
+                "https://carrent-backend-v2hq.onrender.com/api/register",
                 {
                     method: "POST",
 

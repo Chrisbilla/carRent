@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const hourlySection = get("hourlySection");
     const dailySection = get("dailySection");
     const submitButton = form.querySelector('[type="submit"]');
-    const API_URL = "http://localhost:5000";
+    const API_URL = "https://carrent-backend-v2hq.onrender.com";
 
     const carRates = {
         "Mahindra Thar": { hourly: 500, daily: 3500 },
