@@ -1,4 +1,4 @@
-
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -44,7 +44,7 @@
             <p><b>Fuel :</b> Diesel</p>
             <p><b>Transmission :</b> Manual</p>
             <p><b>Seats :</b> 4</p>
-            <span class="available availability-status">Checking status...</span>
+            <span class="availability-status">Checking status...</span>
             <a href="booking.html?car=Mahindra%20Thar" class="rent-btn">Rent Now</a>
         </div>
 
@@ -56,7 +56,7 @@
             <p><b>Fuel :</b> Petrol</p>
             <p><b>Transmission :</b> Automatic</p>
             <p><b>Seats :</b> 5</p>
-            <span class="available availability-status">Checking status...</span>
+            <span class="availability-status">Checking status...</span>
             <a href="booking.html?car=Hyundai%20Creta" class="rent-btn">Rent Now</a>
         </div>
 
@@ -68,7 +68,7 @@
             <p><b>Fuel :</b> Diesel</p>
             <p><b>Transmission :</b> Manual</p>
             <p><b>Seats :</b> 5</p>
-            <span class="available availability-status">Checking status...</span>
+            <span class="availability-status">Checking status...</span>
             <a href="booking.html?car=Tata%20Harrier" class="rent-btn">Rent Now</a>
         </div>
 
@@ -80,7 +80,7 @@
             <p><b>Fuel :</b> Diesel</p>
             <p><b>Transmission :</b> Automatic</p>
             <p><b>Seats :</b> 7</p>
-            <span class="available availability-status">Checking status...</span>
+            <span class="availability-status">Checking status...</span>
             <a href="booking.html?car=Toyota%20Fortuner" class="rent-btn">Rent Now</a>
         </div>
 
@@ -92,7 +92,7 @@
             <p><b>Fuel :</b> Petrol</p>
             <p><b>Transmission :</b> Manual</p>
             <p><b>Seats :</b> 5</p>
-            <span class="available availability-status">Checking status...</span>
+            <span class="availability-status">Checking status...</span>
             <a href="booking.html?car=Maruti%20Brezza" class="rent-btn">Rent Now</a>
         </div>
 
@@ -104,27 +104,31 @@
             <p><b>Fuel :</b> Petrol</p>
             <p><b>Transmission :</b> Automatic</p>
             <p><b>Seats :</b> 4</p>
-            <span class="available availability-status">Checking status...</span>
+            <span class="availability-status">Checking status...</span>
             <a href="booking.html?car=BMW%20M4%20Competition" class="rent-btn">Rent Now</a>
         </div>
 
     </section>
 
-    <p id="availabilityMessage" style="text-align:center; margin:20px; color:#b91c1c;"></p>
+    <p id="availabilityMessage" role="status"
+       style="text-align:center; margin:20px; color:#b91c1c;"></p>
+
+    <div id="logoutToast" class="toast">✅ Logout Successful</div>
 
     <script src="../js/cars.js"></script>
     <script src="../js/navbar.js"></script>
 
-    <div id="logoutToast" class="toast">✅ Logout Successful</div>
-
     <script>
-        const CAR_API_URL = "https://carrent-backend-v2hq.onrender.com/api/cars";
+        const CAR_API_URL =
+            "https://carrent-backend-v2hq.onrender.com/api/cars";
 
         async function loadCarAvailability() {
             const message = document.getElementById("availabilityMessage");
 
             try {
-                const response = await fetch(CAR_API_URL);
+                const response = await fetch(CAR_API_URL, {
+                    headers: { "Accept": "application/json" }
+                });
 
                 if (!response.ok) {
                     throw new Error("Backend returned HTTP " + response.status);
@@ -132,15 +136,24 @@
 
                 const result = await response.json();
 
-                if (!result.success || !Array.isArray(result.cars)) {
-                    throw new Error("Invalid cars data received from backend.");
+                // Supports both a direct array and { success: true, cars: [...] }.
+                const cars = Array.isArray(result)
+                    ? result
+                    : result && Array.isArray(result.cars)
+                        ? result.cars
+                        : null;
+
+                if (!cars) {
+                    throw new Error("Backend response does not contain a cars array.");
                 }
 
                 const carsByName = new Map(
-                    result.cars.map(car => [
-                        String(car.car_name).trim().toLowerCase(),
-                        car
-                    ])
+                    cars
+                        .filter(car => car && car.car_name)
+                        .map(car => [
+                            String(car.car_name).trim().toLowerCase(),
+                            car
+                        ])
                 );
 
                 document.querySelectorAll(".car-card[data-car]").forEach(card => {
@@ -160,17 +173,19 @@
                         return;
                     }
 
+                    const availableValue = car.is_available;
                     const isAvailable =
-                        car.is_available === true ||
-                        car.is_available === 1 ||
-                        car.is_available === "1";
+                        availableValue === true ||
+                        availableValue === 1 ||
+                        availableValue === "1";
 
                     if (isAvailable) {
                         status.textContent = "Available";
                         status.className = "availability-status available";
 
                         rentButton.href =
-                            "booking.html?car=" + encodeURIComponent(car.car_name);
+                            "booking.html?car=" +
+                            encodeURIComponent(car.car_name);
 
                         rentButton.removeAttribute("aria-disabled");
                         rentButton.style.pointerEvents = "";
@@ -191,8 +206,9 @@
                 message.textContent = "";
             } catch (error) {
                 console.error("Availability loading error:", error);
+
                 message.textContent =
-                    "Could not load live availability. Please check that the backend is running.";
+                    "Could not load live availability. Please try again later.";
 
                 document.querySelectorAll(".car-card[data-car]").forEach(card => {
                     const status = card.querySelector(".availability-status");
@@ -201,7 +217,6 @@
                     status.textContent = "Status unavailable";
                     status.className = "availability-status unavailable";
 
-                    // Fail safely: don't offer a booking if availability is unknown.
                     rentButton.removeAttribute("href");
                     rentButton.setAttribute("aria-disabled", "true");
                     rentButton.style.pointerEvents = "none";
@@ -212,8 +227,6 @@
         }
 
         loadCarAvailability();
-
-        // Refresh status periodically while the page remains open.
         setInterval(loadCarAvailability, 15000);
     </script>
 
@@ -244,3 +257,4 @@
 
 </body>
 </html>
+```
