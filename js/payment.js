@@ -25,8 +25,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const upiId = document.getElementById("upiId");
 
     const submitButton = form.querySelector('[type="submit"]');
-    const API_URL = "https://carrent-backend-v2hq.onrender.com";
 
+    const API_URL = "https://carrent-backend-v2hq.onrender.com";
     const total = localStorage.getItem("totalRent");
 
     if (amount && total !== null) {
@@ -87,7 +87,6 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Read JSON safely and report unexpected HTML responses clearly.
     async function readServerResponse(response) {
         const responseText = await response.text();
 
@@ -97,19 +96,20 @@ document.addEventListener("DOMContentLoaded", function () {
             result = JSON.parse(responseText);
         } catch (error) {
             console.error(
-                "Server returned a non-JSON response:",
+                "Non-JSON server response:",
                 response.status,
                 responseText.slice(0, 500)
             );
 
             throw new Error(
-                `Server returned an unexpected response (HTTP ${response.status}). Check that the backend at ${API_URL} is running and the confirmation API URL is correct.`
+                `Server returned an unexpected response (HTTP ${response.status}). Check the confirmation API route.`
             );
         }
 
-        if (!response.ok || !result.success) {
+        if (!response.ok || result.success !== true) {
             throw new Error(
-                result.message || `Request failed (HTTP ${response.status}).`
+                result.message ||
+                `Confirmation failed (HTTP ${response.status}).`
             );
         }
 
@@ -126,7 +126,7 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        // Demo validation only; this page does not process real payments.
+        // Demo validation only. No real payment is processed.
         if (selectedMethod === "card") {
             if (!cardName || cardName.value.trim().length < 3) {
                 alert("Please enter a valid Card Holder Name.");
@@ -176,26 +176,24 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         try {
-            const response = await fetch(
-                `${API_URL}/api/bookings/${encodeURIComponent(bookingId)}/confirm`,
-                {
-                    method: "PUT",
-                    headers: {
-                        "Accept": "application/json"
-                    }
-                }
-            );
+            const confirmationURL =
+                `${API_URL}/api/bookings/${encodeURIComponent(bookingId)}/confirm`;
+
+            const response = await fetch(confirmationURL, {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    paymentMethod: selectedMethod
+                })
+            });
 
             await readServerResponse(response);
 
             localStorage.setItem("bookingStatus", "Confirmed");
-
-            // Card/UPI are demo flows, not real payment processing.
-            // Cash on Pickup remains unpaid until cash is collected.
-            const paymentStatus =
-                isCashMethod(selectedMethod) ? "Pending" : "Pending";
-
-            localStorage.setItem("paymentStatus", paymentStatus);
+            localStorage.setItem("paymentStatus", "Pending");
 
             if (modal) {
                 modal.style.display = "flex";
@@ -212,7 +210,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
         } catch (error) {
             console.error("Payment/Confirmation Error:", error);
-            alert(error.message || "Could not connect to the booking server.");
+
+            alert(
+                error.message ||
+                "Could not connect to the booking server."
+            );
         } finally {
             if (submitButton) {
                 submitButton.disabled = false;
