@@ -6,6 +6,7 @@ const cors = require("cors");
 const mysql = require("mysql2/promise");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 
 const app = express();
 
@@ -22,8 +23,29 @@ const pool = mysql.createPool({
     connectionLimit: 5
 });
 
+// Gmail email transporter
+const mailer = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD
+    }
+});
+
+// Validate database IDs
 function validId(id) {
     return /^\d+$/.test(String(id)) && Number(id) > 0;
+}
+
+// Safely escape user-provided text in HTML emails
+function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[char]);
 }
 
 // Admin API key protection
@@ -69,7 +91,7 @@ app.get("/", (req, res) => {
     });
 });
 
-// Get available cars
+// Get cars
 app.get("/api/cars", async (req, res) => {
     try {
         const [cars] = await pool.query(
@@ -79,6 +101,7 @@ app.get("/api/cars", async (req, res) => {
         res.json(cars);
     } catch (error) {
         console.error("Cars error:", error.message);
+
         res.status(500).json({
             success: false,
             message: "Could not load cars"
@@ -301,7 +324,7 @@ app.get("/api/bookings/history", async (req, res) => {
     }
 });
 
-// Confirm booking
+// Confirm booking and send confirmation email
 app.post("/api/bookings/:id/confirm", async (req, res) => {
     const bookingId = req.params.id;
 
@@ -314,18 +337,24 @@ app.post("/api/bookings/:id/confirm", async (req, res) => {
 
     let connection;
     let transactionStarted = false;
+    let booking;
 
     try {
         connection = await pool.getConnection();
         await connection.beginTransaction();
         transactionStarted = true;
 
-        const [bookings] = await connection.execute(
-            "SELECT id FROM bookings WHERE id = ? FOR UPDATE",
+        const [rows] = await connection.execute(
+            `SELECT id, full_name, email, car, pickup_date,
+                    pickup_time, return_date, return_time,
+                    total_rent, booking_status
+             FROM bookings
+             WHERE id = ?
+             FOR UPDATE`,
             [bookingId]
         );
 
-        if (bookings.length === 0) {
+        if (rows.length === 0) {
             await connection.rollback();
             transactionStarted = false;
 
@@ -335,24 +364,24 @@ app.post("/api/bookings/:id/confirm", async (req, res) => {
             });
         }
 
-        await connection.execute(
-            `UPDATE bookings
-             SET booking_status = 'Confirmed',
-                 payment_status = 'Pending'
-             WHERE id = ?`,
-            [bookingId]
-        );
+        booking = rows[0];
+
+        // Avoid sending duplicate confirmation emails on repeated requests.
+        const alreadyConfirmed =
+            String(booking.booking_status).toLowerCase() === "confirmed";
+
+        if (!alreadyConfirmed) {
+            await connection.execute(
+                `UPDATE bookings
+                 SET booking_status = 'Confirmed',
+                     payment_status = 'Pending'
+                 WHERE id = ?`,
+                [bookingId]
+            );
+        }
 
         await connection.commit();
         transactionStarted = false;
-
-        res.json({
-            success: true,
-            bookingId: Number(bookingId),
-            bookingStatus: "Confirmed",
-            paymentStatus: "Pending",
-            message: "Booking confirmed. Payment is still pending."
-        });
     } catch (error) {
         if (connection && transactionStarted) {
             await connection.rollback();
@@ -360,13 +389,112 @@ app.post("/api/bookings/:id/confirm", async (req, res) => {
 
         console.error("Confirmation error:", error.message);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Could not confirm booking"
         });
     } finally {
         if (connection) connection.release();
     }
+
+    // If this booking was already confirmed, do not resend the email.
+    if (String(booking.booking_status).toLowerCase() === "confirmed") {
+        return res.json({
+            success: true,
+            bookingId: Number(bookingId),
+            bookingStatus: "Confirmed",
+            paymentStatus: "Pending",
+            emailSent: false,
+            message: "Booking was already confirmed."
+        });
+    }
+
+    let emailSent = false;
+
+    try {
+        if (
+            !process.env.GMAIL_USER ||
+            !process.env.GMAIL_APP_PASSWORD
+        ) {
+            throw new Error("Gmail environment variables are missing");
+        }
+
+        const details = [
+            `Booking ID: ${booking.id}`,
+            `Car: ${booking.car}`,
+            `Pickup date: ${booking.pickup_date}`,
+            `Pickup time: ${booking.pickup_time || "Not specified"}`,
+            `Return date: ${booking.return_date || "Not specified"}`,
+            `Return time: ${booking.return_time || "Not specified"}`,
+            `Total rent: ${booking.total_rent}`,
+            "Booking status: Confirmed",
+            "Payment status: Pending"
+        ];
+
+        const htmlRows = [
+            ["Booking ID", booking.id],
+            ["Car", booking.car],
+            ["Pickup date", booking.pickup_date],
+            ["Pickup time", booking.pickup_time || "Not specified"],
+            ["Return date", booking.return_date || "Not specified"],
+            ["Return time", booking.return_time || "Not specified"],
+            ["Total rent", booking.total_rent],
+            ["Booking status", "Confirmed"],
+            ["Payment status", "Pending"]
+        ].map(([label, value]) => `
+            <tr>
+                <td style="padding:9px;border:1px solid #ddd;font-weight:bold">
+                    ${escapeHtml(label)}
+                </td>
+                <td style="padding:9px;border:1px solid #ddd">
+                    ${escapeHtml(value)}
+                </td>
+            </tr>
+        `).join("");
+
+        await mailer.sendMail({
+            from: `"CarRent" <${process.env.GMAIL_USER}>`,
+            to: booking.email,
+            subject: `CarRent Booking Confirmation #${booking.id}`,
+            text: [
+                `Hello ${booking.full_name},`,
+                "",
+                "Your car booking has been confirmed!",
+                "",
+                ...details,
+                "",
+                "Thank you for choosing CarRent!"
+            ].join("\n"),
+            html: `
+                <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;color:#222">
+                    <h2 style="color:#2563eb">CarRent</h2>
+                    <h3>Booking Confirmed!</h3>
+                    <p>Hello ${escapeHtml(booking.full_name)},</p>
+                    <p>Your car booking has been confirmed successfully.</p>
+                    <table style="border-collapse:collapse;width:100%">
+                        ${htmlRows}
+                    </table>
+                    <p style="margin-top:24px">Thank you for choosing CarRent!</p>
+                </div>
+            `
+        });
+
+        emailSent = true;
+        console.log("Booking confirmation email sent for booking:", booking.id);
+    } catch (error) {
+        console.error("Booking email error:", error.message);
+    }
+
+    return res.json({
+        success: true,
+        bookingId: Number(bookingId),
+        bookingStatus: "Confirmed",
+        paymentStatus: "Pending",
+        emailSent,
+        message: emailSent
+            ? "Booking confirmed and email sent."
+            : "Booking confirmed, but confirmation email could not be sent."
+    });
 });
 
 // All routes below require the admin API key
